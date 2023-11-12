@@ -1,0 +1,1 @@
+Rscript /home/orangepi/monitor/cron_monitor.R
