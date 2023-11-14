@@ -4,6 +4,7 @@ library(telegram.bot)
 # library(tidyverse)
 
 bot <- Bot(token = scan("/var/temperature.bot.token", what = "", quiet = TRUE))
+testuser = scan("/var/test.user.id", what = "", quiet = TRUE)
 
 # custom functions --------------------------------------------------------
 get.temp <- function(){ 
@@ -37,8 +38,6 @@ viz.temp <- function(x = "0", df = get.temp()){
         ) + 
         ggplot2::theme_classic() 
         # ggplot2::scale_x_datetme(date_breaks = "1 hour", date_labels =  "%h:%m, %d %m")
-    
-    
     }
 
 
@@ -49,13 +48,11 @@ global.ip <- function() {
         suppressMessages() 
 }
 local.ip <- function(){system("hostname -I", intern = TRUE)}
-mac <- function(){ system("ip link", intern = TRUE) %>% 
-        str_subset("ether") %>% 
-        str_split(" ") %>% 
-        .[[1]] %>% 
-        str_subset("\\:") %>% 
-        .[[1]]
-    # paste(global.ip, local.ip, mac)
+mac <- function(){ 
+    mac <- system("ip link", intern = TRUE) |>
+        stringr::str_subset("ether") |>
+        stringr::str_split(" ")
+    stringr::str_subset(mac[[1]], "\\:")[[1]]
 }
 
 get.speed <- function(){
@@ -64,11 +61,22 @@ get.speed <- function(){
     
 }
 
+up <- function(){
+    up <- system("uptime", intern = TRUE) |> 
+        stringr::str_split_1(" min")
+    up <- stringr::str_split_1(up[1], "up ")
+    up <- stringr::str_split_1(up[2], "\\:") |> 
+        stringr::str_trim()
+    if(length(up)<2){up <- c(0, 0, up)}
+    if(length(up)<3){up <- c(0, up)}
+    paste0(up[1], " days ", up[2], " hours ", up[3], " mins")
+}
 
 # Bot handlers ------------------------------------------------------------
 fun_net <- function(bot, update){ 
     bot$sendMessage(
-        chat_id = update$message$chat_id, 
+        # chat_id = testuser,
+        chat_id = update$message$chat_id,
         text = paste0(
             "<b>External IP: </b>", global.ip(),
             "\n<b>Internal IP: </b>", local.ip(),
@@ -80,16 +88,8 @@ fun_net <- function(bot, update){
 
 fun_info <- function(bot, update){
     df <- get.temp()
-    up <- system("uptime", intern = TRUE) |> 
-        str_split_1(" min") %>% 
-        .[1] %>% 
-        str_split_1("up ") %>% 
-        .[2] %>% 
-        str_split_1("\\:") 
-    if(length(up)<2){up <- c(0, 0, up)}
-    if(length(up)<3){up <- c(0, up)}
     bot$sendMessage(
-        # chat_id = 276388547,
+        # chat_id = testuser,
         chat_id = update$message$chat_id,
         text = paste0(
             "<b>Log stats </b>\n \n<b>", nrow(df), 
@@ -102,7 +102,7 @@ fun_info <- function(bot, update){
             " °C</b> \nMean temperature: <b>", 
             round(mean(df$tmp), 1),
             " °C</b>",
-            "\n\n<b>Server uptime:</b> \n", up[1], " days ", up[2], " hours ", up[3], " mins\n"
+            "\n\n<b>Server uptime:</b> \n", up()
         ),
         parse_mode = "HTML"
     )
@@ -110,11 +110,11 @@ fun_info <- function(bot, update){
 
 fun_viz <- function(bot, update){
     df <- get.temp()
-    nm = paste0("/home/orangepi/monitor/export_", str_replace_all(Sys.time(), "\\:", "."), ".png")
-    ggsave(nm, plot = viz.temp(), height = 5, width = 4, dpi = 600)
+    nm = paste0("/home/orangepi/monitor/export_", stringr::str_replace_all(Sys.time(), "\\:", "."), ".png")
+    ggplot2::ggsave(nm, plot = viz.temp(), height = 5, width = 4, dpi = 600)
     
     bot$sendPhoto(
-        # chat_id = 276388547,
+        # chat_id = testuser,
         chat_id = update$message$chat_id,
         photo = nm,
         caption = paste0(
@@ -137,8 +137,8 @@ fun_start <- function(bot, update){
     df <- get.temp()
     
     bot$sendMessage(
-        # chat_id = update$message$chat_id, 
-        chat_id = 276388547,
+        chat_id = update$message$chat_id,
+        # chat_id = testuser,
         text = paste0(
             "<b>Telegram bot for manage my Orange Pi5 server</b>\n\nNet parameters\n<b>External IP: </b>", global.ip(),
             "\n<b>Internal IP: </b>", local.ip(),
@@ -159,18 +159,10 @@ fun_start <- function(bot, update){
 }
 
 # welcome message ---------------------------------------------------------
-up <- system("uptime", intern = TRUE) |> 
-    str_split_1(" min") %>% 
-    .[1] %>% 
-    str_split_1("up ") %>% 
-    .[2] %>% 
-    str_split_1("\\:") 
-if(length(up)<2){up <- c(0, 0, up)}
-if(length(up)<3){up <- c(0, up)}
-bot$sendMessage(chat_id = 276388547, 
+bot$sendMessage(chat_id = testuser, 
     text = paste0(
         "<b>Bot is started at: </b>\n", Sys.time(), "\n",
-        "\n<b>Server uptime:</b> \n", up[1], " days ", up[2], " hours ", up[3], " mins\n",
+        "\n<b>Server uptime:</b> \n", up(),
         "\n<b>External IP: </b>", global.ip(),
         "\n<b>Internal IP: </b>", local.ip(),
         "\n<b>MAC address: </b>", mac(), "\n", 
