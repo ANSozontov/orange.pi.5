@@ -10,9 +10,9 @@ a <- system("sensors", intern = TRUE) |>
 suppressWarnings(
     write.table(
         a,
-        "/home/orangepi/monitor/temperature.csv",
+        "./temperature.csv",
         append = TRUE,
         sep = ",",
         row.names = FALSE,
-        col.names = !file.exists("/home/orangepi/monitor/temperature.csv"))
+        col.names = !file.exists("./temperature.csv"))
 )
